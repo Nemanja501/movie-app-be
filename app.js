@@ -2,8 +2,11 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const multer = require('multer');
+const path = require('path');
 
 const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
+const movieRoutes = require('./routes/movie');
 
 const app = express();
 
@@ -26,19 +29,22 @@ const fileFilter = (req, file, cb) =>{
 
 app.use(bodyParser.json());
 app.use(multer({storage: fileStorage, fileFilter}).single('image'));
+app.use('/images', express.static(path.join(__dirname, 'images')));
 app.use((req, res, next) =>{
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     next();
 })
+
+app.use('/admin', adminRoutes);
 app.use(authRoutes);
+app.use(movieRoutes);
 
 app.use((err, req, res, next) =>{
     const message = err.message || 'An error occurred';
     const code = err.statusCode || 500;
-    const data = err.data;
-    console.log('app js', data);
+    const data = err.data || [];
     res.status(code).json({message, data});
 })
 
