@@ -1,32 +1,29 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
-const movieSchema = new Schema({
-    title: {
+
+const actorSchema = new Schema({
+    name: {
         type: String,
         required: true
     },
-    description: {
+    bio: {
         type: String,
         required: true
     },
-    year: {
+    age: {
         type: Number,
         required: true
     },
-    posterUrl: {
+    imageUrl: {
         type: String,
         required: true
     },
-    director: {
-        type: Schema.Types.ObjectId,
-        ref: 'Director'
-    },
-    cast: [
+    movies: [
         {
             type: Schema.Types.ObjectId,
-            ref: 'Actor'
+            ref: 'Movie'
         }
     ]
 });
 
-module.exports = mongoose.model('Movie', movieSchema);
+module.exports = mongoose.model('Actor', actorSchema);

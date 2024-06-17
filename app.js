@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const movieRoutes = require('./routes/movie');
 const directorRoutes = require('./routes/director');
+const actorRoutes = require('./routes/actor');
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/admin', adminRoutes);
 app.use(authRoutes);
 app.use(movieRoutes);
 app.use(directorRoutes);
+app.use(actorRoutes);
 
 app.use((err, req, res, next) =>{
     const message = err.message || 'An error occurred';

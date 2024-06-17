@@ -15,7 +15,7 @@ exports.getMovies = async (req, res, next) =>{
 
 exports.getSingleMovie = async (req, res, next) =>{
     const id = req.params.id;
-    const movie = await Movie.findById(id).populate('director');
+    const movie = await Movie.findById(id).populate('director').populate('cast');
     if(!movie){
         const error = new Error('Movie not found');
         error.statusCode = 404;
