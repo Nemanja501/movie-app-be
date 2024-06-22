@@ -14,3 +14,9 @@ exports.getDirector = async (req, res, next)=>{
     const totalItems = await Movie.find({director: director._id}).countDocuments();
     return res.status(200).json({message: 'Director fetched successfully', director, totalItems});
 }
+
+exports.getDirectorData = async (req, res, next) =>{
+    const directorId = req.params.directorId;
+    const director = await Director.findById(directorId);
+    return res.status(200).json({message: 'Director fetched successfully', director});
+}

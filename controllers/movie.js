@@ -24,3 +24,13 @@ exports.getSingleMovie = async (req, res, next) =>{
     return res.status(200).json({message: 'Movie fetched successfully', movie});
 }
 
+exports.getSingleMovieData = async (req, res, next) =>{
+    const movieId = req.params.movieId;
+    const movie = await Movie.findById(movieId);
+    if(!movie){
+        const error = new Error('Movie not found');
+        error.statusCode = 404;
+        return next(error);
+    }
+    return res.status(200).json({message: 'Movie fetched successfully', movie});
+}
