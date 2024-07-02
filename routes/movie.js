@@ -12,5 +12,7 @@ router.post('/watchlist', isAuth, movieController.getWatchlist);
 router.post('/mark-as-watched', isAuth, movieController.markAsWatched);
 router.post('/watched-movies', isAuth, movieController.getWatchedMovies);
 router.post('/add-rating', isAuth, movieController.addMovieRating);
+router.post('/remove-from-watchlist', isAuth, movieController.removeFromWatchlist);
+router.post('/remove-from-watched', isAuth, movieController.removeFromWatchedMovies);
 
 module.exports = router;

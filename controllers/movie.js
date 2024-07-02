@@ -52,16 +52,22 @@ exports.addToWatchlist = async (req, res, next) =>{
         error.statusCode = 404;
         return next(error);
     }
-    for(let i = 0; i < user.watchlist.length; i++){
-        if(user.watchlist[i].toString() === movieId.toString()){
-            const error = new Error('Movie is already in watchlist');
-            error.statusCode = 409;
-            return next(error);
+    if(user.watchlist.length > 0){
+        for(let i = 0; i < user.watchlist.length; i++){
+            if(user.watchlist[i].toString() === movieId.toString()){
+                const error = new Error('Movie is already in watchlist');
+                error.statusCode = 409;
+                return next(error);
+            }
         }
-        if(user.watched[i].movie.toString() === movieId.toString()){
-            const error = new Error("You've already watched this movie");
-            error.statusCode = 409;
-            return next(error);
+    }
+    if(user.watched.length > 0){
+        for(let i = 0; i < user.watched.length; i++){
+            if(user.watched[i].movie.toString() === movieId.toString()){
+                const error = new Error("You've already watched this movie");
+                error.statusCode = 409;
+                return next(error);
+            }
         }
     }
     user.watchlist.push(movieId);
@@ -82,6 +88,20 @@ exports.getWatchlist = async (req, res, next) =>{
     const count = await User.aggregate([{$match: {"_id": new mongooose.Types.ObjectId(userId)}}, {$unwind: '$watchlist'}, {$group: {_id: "$watchlist", count: {$sum: 1}}}]);
     const totalItems = count.length;
     return res.status(200).json({message: 'Watchlist fetched successfully', user, totalItems});
+}
+
+exports.removeFromWatchlist = async (req, res, next) =>{
+    const userId = req.body.userId;
+    const movieId = req.body.movieId;
+    const user = await User.findById(userId);
+    if(!user){
+        const error = new Error('User not found');
+        error.statusCode = 404;
+        return next(error);
+    }
+    user.watchlist.pull(movieId);
+    await user.save();
+    return res.status(200).json({message: 'Removed movie from watchlist'});
 }
 
 exports.markAsWatched = async (req, res, next) =>{
@@ -114,6 +134,20 @@ exports.getWatchedMovies = async (req, res, next) =>{
         return next(error);
     }
     return res.status(200).json({message: 'Watched movies fetched successfully', movies: user.watched});
+}
+
+exports.removeFromWatchedMovies = async (req, res, next) =>{
+    const userId = req.body.userId;
+    const movieId = req.body.movieId;
+    const user = await User.findById(userId);
+    if(!user){
+        const error = new Error('User not found');
+        error.statusCode = 404;
+        return next(error);
+    }
+    await User.findOneAndUpdate({_id: userId}, {$pull: {"watched": {"movie": movieId}}});
+    await user.save();
+    return res.status(200).json({message: 'Removed movie from watched movies'});
 }
 
 exports.addMovieRating = async (req, res, next) =>{
