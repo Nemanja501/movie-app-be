@@ -26,6 +26,12 @@ const movieSchema = new Schema({
             type: Schema.Types.ObjectId,
             ref: 'Actor'
         }
+    ],
+    reviews: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Review'
+        }
     ]
 });
 

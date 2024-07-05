@@ -1,5 +1,7 @@
 const Movie = require('../models/movie');
 const User = require('../models/user');
+const Review = require('../models/review');
+const {validationResult} = require('express-validator');
 const mongooose = require('mongoose');
 
 exports.getMovies = async (req, res, next) =>{
@@ -17,7 +19,7 @@ exports.getMovies = async (req, res, next) =>{
 
 exports.getSingleMovie = async (req, res, next) =>{
     const id = req.params.id;
-    const movie = await Movie.findById(id).populate('director').populate('cast');
+    const movie = await Movie.findById(id).populate('director').populate('cast').populate('reviews');
     if(!movie){
         const error = new Error('Movie not found');
         error.statusCode = 404;
@@ -167,4 +169,74 @@ exports.addMovieRating = async (req, res, next) =>{
     });
     await user.save();
     return res.status(200).json({message: 'Successfully added rating'});
+}
+
+exports.getRating = async (req, res, next) =>{
+    const movieId = req.body.movieId;
+    const userId = req.body.userId;
+    const user = await User.findById(userId);
+    if(!user){
+        const error = new Error('User not found');
+        error.statusCode = 404;
+        return next(error);
+    }
+    let rating = 0;
+    user.watched.forEach(watchedMovie =>{
+        if(watchedMovie.movie.toString() === movieId.toString()){
+            rating = watchedMovie.rating;
+        }
+    })
+    return res.status(200).json({message: 'Rating fetched successfully', rating});
+}
+
+exports.addReview = async (req, res, next) =>{
+    const errors = validationResult(req);
+    if(!errors.isEmpty()){
+        const error = new Error('Validation failed');
+        error.statusCode = 422;
+        error.data = errors.array();
+        return next(error);
+    }
+    const movieId = req.body.movieId;
+    const userId = req.body.userId;
+    const title = req.body.title;
+    const content = req.body.content;
+    const rating = req.body.rating;
+    const user = await User.findById(userId);
+    if(!user){
+        const error = new Error('User not found');
+        error.statusCode = 404;
+        return next(error);
+    }
+    const movie = await Movie.findById(movieId);
+    if(!movie){
+        const error = new Error('Movie not found');
+        error.statusCode = 404;
+        return next(error);
+    }
+    const review = new Review({
+        author: user.name,
+        title,
+        content,
+        rating,
+        movieId
+    });
+    let hasWatched = false;
+    user.watched.forEach(movieData =>{
+        if(movieData.movie.toString() === movieId.toString()){
+            hasWatched = true;
+        }
+    })
+    if(!hasWatched){
+        user.watched.push({movie: movieId, rating: rating});
+        await user.save();
+    }
+    if(user.watchlist.includes(movieId.toString())){
+        user.watchlist.pull(movieId);
+        await user.save();
+    }
+    const reviewInDatabase = await review.save();
+    movie.reviews.push(reviewInDatabase._id);
+    await movie.save();
+    return res.status(201).json({message: 'Review successfully created'});
 }
