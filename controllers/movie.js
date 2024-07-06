@@ -162,11 +162,31 @@ exports.addMovieRating = async (req, res, next) =>{
         error.statusCode = 404;
         return next(error);
     }
+    const movie = await Movie.findById(movieId);
+    if(!movie){
+        const error = new Error('Movie not found');
+        error.statusCode = 404;
+        return next(error);
+    }
+    let oldRating;
     user.watched.forEach(watchedMovie => {
         if(watchedMovie.movie.toString() === movieId.toString()){
+            if(!watchedMovie.rating){
+                movie.ratings.push(rating);
+            }else{
+                oldRating = watchedMovie.rating;
+            }
             watchedMovie.rating = rating;
         }
     });
+    if(oldRating){
+        const index = movie.ratings.findIndex((rating) => rating === oldRating);
+        movie.ratings.splice(index, 1);
+        movie.ratings.push(rating);
+    }
+    const average = movie.ratings.reduce((acc, c) => acc + c) / movie.ratings.length;
+    movie.averageRating = Math.round(average * 10) / 10;
+    await movie.save();
     await user.save();
     return res.status(200).json({message: 'Successfully added rating'});
 }

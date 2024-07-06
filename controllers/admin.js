@@ -2,6 +2,8 @@ const path = require('path');
 const Movie = require('../models/movie');
 const Director = require('../models/director');
 const Actor = require('../models/actor');
+const User = require('../models/user');
+const Review = require('../models/review');
 const {validationResult} = require('express-validator');
 const {deleteFile} = require('../util/file');
 
@@ -125,6 +127,9 @@ exports.deleteMovie = async (req, res, next) =>{
         error.statusCode = 404;
         return next(error);
     }
+    await User.updateMany({watchlist: {$in: [movieId]}}, {$pull: {watchlist: {$in: [movieId]}}});
+    await User.updateMany({"watched.movie": movieId}, {$pull: {watched: {movie: movieId}}});
+    await Review.deleteMany({movieId: movieId});
     const director = await Director.findById(movie.director);
     if(!director){
         const error = new Error('Could not find director');
@@ -219,6 +224,11 @@ exports.deleteDirector = async (req, res, next)=>{
         error.statusCode = 404;
         return next(error);
     }
+    await Promise.all(movies.map(async (movie) =>{
+        await User.updateMany({watchlist: {$in: [movie._id]}}, {$pull: {watchlist: {$in: [movie._id]}}});
+        await User.updateMany({"watched.movie": movie._id}, {$pull: {watched: {movie: movie._id}}});
+        return await Review.deleteMany({movieId: movie._id});
+    }))
     await Promise.all(movies.map(async (movie) =>{
         const actors = await Actor.find({movies: {$in: [movie._id]}});
         return await Promise.all(actors.map(async (actor) =>{

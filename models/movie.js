@@ -32,7 +32,16 @@ const movieSchema = new Schema({
             type: Schema.Types.ObjectId,
             ref: 'Review'
         }
-    ]
+    ],
+    ratings: [
+        {
+            type: Number
+        }
+    ],
+    averageRating: {
+        type: Number,
+        default: null
+    }
 });
 
 module.exports = mongoose.model('Movie', movieSchema);
