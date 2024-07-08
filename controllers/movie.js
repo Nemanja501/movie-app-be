@@ -3,6 +3,7 @@ const User = require('../models/user');
 const Review = require('../models/review');
 const {validationResult} = require('express-validator');
 const mongooose = require('mongoose');
+const {calculateAverageScore, removeRating} = require('../util/movie');
 
 exports.getMovies = async (req, res, next) =>{
     const page = req.query.page || 1;
@@ -147,6 +148,19 @@ exports.removeFromWatchedMovies = async (req, res, next) =>{
         error.statusCode = 404;
         return next(error);
     }
+    const movie = await Movie.findById(movieId);
+    if(!movie){
+        const error = new Error('Movie not found');
+        error.statusCode = 404;
+        return next(error);
+    }
+    user.watched.forEach(movieData =>{
+        if(movieData.movie.toString() === movieId.toString()){
+            removeRating(movie, movieData.rating);
+            calculateAverageScore(movie);
+        }
+    });
+    await movie.save();
     await User.findOneAndUpdate({_id: userId}, {$pull: {"watched": {"movie": movieId}}});
     await user.save();
     return res.status(200).json({message: 'Removed movie from watched movies'});
@@ -180,12 +194,10 @@ exports.addMovieRating = async (req, res, next) =>{
         }
     });
     if(oldRating){
-        const index = movie.ratings.findIndex((rating) => rating === oldRating);
-        movie.ratings.splice(index, 1);
+        removeRating(movie, oldRating);
         movie.ratings.push(rating);
     }
-    const average = movie.ratings.reduce((acc, c) => acc + c) / movie.ratings.length;
-    movie.averageRating = Math.round(average * 10) / 10;
+    calculateAverageScore(movie);
     await movie.save();
     await user.save();
     return res.status(200).json({message: 'Successfully added rating'});
@@ -245,18 +257,24 @@ exports.addReview = async (req, res, next) =>{
     user.watched.forEach(movieData =>{
         if(movieData.movie.toString() === movieId.toString()){
             hasWatched = true;
+            if(movieData.rating !== rating){
+                removeRating(movie, movieData.rating);
+                movie.ratings.push(rating);
+                movieData.rating = rating;
+            }
         }
     })
     if(!hasWatched){
         user.watched.push({movie: movieId, rating: rating});
-        await user.save();
+        movie.ratings.push(rating);
     }
     if(user.watchlist.includes(movieId.toString())){
         user.watchlist.pull(movieId);
-        await user.save();
     }
+    await user.save();
     const reviewInDatabase = await review.save();
     movie.reviews.push(reviewInDatabase._id);
+    calculateAverageScore(movie);
     await movie.save();
     return res.status(201).json({message: 'Review successfully created'});
 }
