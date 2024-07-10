@@ -20,13 +20,17 @@ exports.getMovies = async (req, res, next) =>{
 
 exports.getSingleMovie = async (req, res, next) =>{
     const id = req.params.id;
-    const movie = await Movie.findById(id).populate('director').populate('cast').populate('reviews');
+    const page = req.query.page || 1;
+    const perPage = 8;
+    const movie = await Movie.findById(id).populate('director').populate('cast').populate({path: 'reviews', options: {limit: perPage, skip: (page - 1) * perPage}});
     if(!movie){
         const error = new Error('Movie not found');
         error.statusCode = 404;
         return next(error);
     }
-    return res.status(200).json({message: 'Movie fetched successfully', movie});
+    const count = await Movie.aggregate([{$match: {"_id": movie._id}}, {$unwind: '$reviews'}, {$group: {_id: "$reviews", count: {$sum: 1}}}]);
+    const totalItems = count.length;
+    return res.status(200).json({message: 'Movie fetched successfully', movie, totalItems});
 }
 
 exports.getSingleMovieData = async (req, res, next) =>{
@@ -130,13 +134,17 @@ exports.markAsWatched = async (req, res, next) =>{
 
 exports.getWatchedMovies = async (req, res, next) =>{
     const userId = req.body.userId;
-    const user = await User.findById(userId).populate('watched.movie');
+    const page = req.query.page || 1;
+    const perPage = 15;
+    const user = await User.findById(userId).select({'watched': {$slice: [(page - 1) * perPage, perPage]}}).populate({path: 'watched.movie'});
     if(!user){
         const error = new Error('User not found');
         error.statusCode = 404;
         return next(error);
     }
-    return res.status(200).json({message: 'Watched movies fetched successfully', movies: user.watched});
+    const count = await User.aggregate([{$match: {"_id": user._id}}, {$unwind: '$watched'}, {$group: {_id: "$watched.movie", count: {$sum: 1}}}]);
+    const totalItems = count.length;
+    return res.status(200).json({message: 'Watched movies fetched successfully', userMovies: user, totalItems});
 }
 
 exports.removeFromWatchedMovies = async (req, res, next) =>{
