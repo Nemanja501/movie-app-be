@@ -21,5 +21,6 @@ router.post('/add-review', [
     body('content').isLength({min: 10, max: 300}).withMessage('Content must be between 10 and 300 characters'),
     body('rating').isInt({min: 1}).withMessage('Must include a rating')
 ], isAuth, movieController.addReview);
+router.post('/delete-review', isAuth, movieController.deleteReview);
 
 module.exports = router;

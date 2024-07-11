@@ -3,7 +3,7 @@ const User = require('../models/user');
 const Review = require('../models/review');
 const {validationResult} = require('express-validator');
 const mongooose = require('mongoose');
-const {calculateAverageScore, removeRating} = require('../util/movie');
+const {calculateAverageScore, removeRating, checkIfMovieIsInWatchlist, checkIfUserWatchedMovie} = require('../util/movie');
 
 exports.getMovies = async (req, res, next) =>{
     const page = req.query.page || 1;
@@ -59,23 +59,15 @@ exports.addToWatchlist = async (req, res, next) =>{
         error.statusCode = 404;
         return next(error);
     }
-    if(user.watchlist.length > 0){
-        for(let i = 0; i < user.watchlist.length; i++){
-            if(user.watchlist[i].toString() === movieId.toString()){
-                const error = new Error('Movie is already in watchlist');
-                error.statusCode = 409;
-                return next(error);
-            }
-        }
+    if(checkIfMovieIsInWatchlist(user, movieId)){
+        const error = new Error('Movie is already in watchlist');
+        error.statusCode = 409;
+        return next(error);
     }
-    if(user.watched.length > 0){
-        for(let i = 0; i < user.watched.length; i++){
-            if(user.watched[i].movie.toString() === movieId.toString()){
-                const error = new Error("You've already watched this movie");
-                error.statusCode = 409;
-                return next(error);
-            }
-        }
+    if(checkIfUserWatchedMovie(user, movieId)){
+        const error = new Error("You've already watched this movie");
+        error.statusCode = 409;
+        return next(error);
     }
     user.watchlist.push(movieId);
     await user.save();
@@ -126,7 +118,14 @@ exports.markAsWatched = async (req, res, next) =>{
         error.statusCode = 404;
         return next(error);
     }
-    user.watchlist.pull(movieId);
+    if(checkIfUserWatchedMovie(user, movieId)){
+        const error = new Error("You've already watched this movie");
+        error.statusCode = 409;
+        return next(error);
+    }
+    if(checkIfMovieIsInWatchlist(user, movieId)){
+        user.watchlist.pull(movieId);
+    }
     user.watched.push({movie: movieId, rating: null});
     await user.save();
     return res.status(200).json({message: 'Movie marked as watched'});
@@ -168,6 +167,7 @@ exports.removeFromWatchedMovies = async (req, res, next) =>{
             calculateAverageScore(movie);
         }
     });
+    await Review.deleteMany({userId: userId});
     await movie.save();
     await User.findOneAndUpdate({_id: userId}, {$pull: {"watched": {"movie": movieId}}});
     await user.save();
@@ -259,7 +259,8 @@ exports.addReview = async (req, res, next) =>{
         title,
         content,
         rating,
-        movieId
+        movieId,
+        userId
     });
     let hasWatched = false;
     user.watched.forEach(movieData =>{
@@ -285,4 +286,18 @@ exports.addReview = async (req, res, next) =>{
     calculateAverageScore(movie);
     await movie.save();
     return res.status(201).json({message: 'Review successfully created'});
+}
+
+exports.deleteReview = async (req, res, next) =>{
+    const review = req.body.review;  
+    const movie = await Movie.findById(review.movieId);
+    if(!movie){
+        const error = new Error('Movie not found');
+        error.statusCode = 404;
+        return next(error);
+    }
+    movie.reviews.pull(review._id);
+    await movie.save();
+    await Review.findByIdAndDelete(review._id);
+    return res.status(200).json({message: 'Review deleted successfully'});
 }
